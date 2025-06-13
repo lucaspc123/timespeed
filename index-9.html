@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contador Regressivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .time-input {
+            width: 60px;
+            text-align: center;
+            font-size: 1.5rem;
+            padding: 0.5rem;
+        }
+        
+        .time-separator {
+            font-size: 1.5rem;
+            margin: 0 0.5rem;
+        }
+        
+        #fullscreen-display {
+            transition: background-color 0.3s ease;
+        }
+        
+        .alert-animation {
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        body {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body::-webkit-scrollbar {
+            display: none;
+        }
+        
+        /* Estilo para a tela cheia */
+        #countdown-display {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: #fff;
+            font-size: 20vw;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+        }
+        
+        #countdown-timer {
+            font-weight: bold;
+        }
+        
+        #countdown-message {
+            display: none;
+            font-size: 10vw;
+            margin-top: 2rem;
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Screen 1: Control Panel -->
+    <div id="control-panel" class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+            <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">Contador Regressivo</h1>
+            
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Configurar Tempo</h2>
+                <div class="flex items-center justify-center">
+                    <input type="number" id="hours" min="0" max="23" value="0" class="time-input border-2 border-gray-300 rounded-lg">
+                    <span class="time-separator">:</span>
+                    <input type="number" id="minutes" min="0" max="59" value="10" class="time-input border-2 border-gray-300 rounded-lg">
+                    <span class="time-separator">:</span>
+                    <input type="number" id="seconds" min="0" max="59" value="0" class="time-input border-2 border-gray-300 rounded-lg">
+                </div>
+            </div>
+            
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Mensagem Personalizada</h2>
+                <input type="text" id="custom-message" value="TEMPO ESGOTADO" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg text-lg">
+            </div>
+            
+            <div class="flex flex-col space-y-4">
+                <button id="start-countdown" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-play-circle mr-2"></i> Iniciar Contagem
+                </button>
+                
+                <button id="test-alert" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-bell mr-2"></i> Testar Alerta
+                </button>
+                
+                <button id="reset" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition duration-300 flex items-center justify-center">
+                    <i class="fas fa-undo mr-2"></i> Resetar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tela de contagem regressiva em tela cheia -->
+    <div id="countdown-display">
+        <div id="countdown-timer">00:10:00</div>
+        <div id="countdown-message">TEMPO ESGOTADO</div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const hoursInput = document.getElementById('hours');
+        const minutesInput = document.getElementById('minutes');
+        const secondsInput = document.getElementById('seconds');
+        const customMessageInput = document.getElementById('custom-message');
+        const startButton = document.getElementById('start-countdown');
+        const testAlertButton = document.getElementById('test-alert');
+        const resetButton = document.getElementById('reset');
+        const countdownDisplay = document.getElementById('countdown-display');
+        const countdownTimer = document.getElementById('countdown-timer');
+        const countdownMessage = document.getElementById('countdown-message');
+        
+        // Variáveis do contador
+        let countdownInterval;
+        let totalSeconds = 0;
+        
+        // Input validation
+        [hoursInput, minutesInput, secondsInput].forEach(input => {
+            input.addEventListener('change', validateTimeInput);
+            input.addEventListener('input', validateTimeInput);
+        });
+        
+        function validateTimeInput(e) {
+            const input = e.target;
+            let value = parseInt(input.value) || 0;
+            
+            if (input.id === 'hours') {
+                value = Math.min(23, Math.max(0, value));
+            } else {
+                value = Math.min(59, Math.max(0, value));
+            }
+            
+            input.value = value.toString().padStart(2, '0');
+        }
+        
+        function calculateTotalSeconds() {
+            const hours = parseInt(hoursInput.value) || 0;
+            const minutes = parseInt(minutesInput.value) || 0;
+            const seconds = parseInt(secondsInput.value) || 0;
+            
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+        
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function startCountdown() {
+            totalSeconds = calculateTotalSeconds();
+            const message = customMessageInput.value;
+            
+            if (totalSeconds <= 0) {
+                alert('Por favor, defina um tempo válido maior que zero.');
+                return;
+            }
+            
+            // Mostrar a tela de contagem regressiva
+            countdownDisplay.style.display = 'flex';
+            countdownTimer.textContent = formatTime(totalSeconds);
+            countdownMessage.textContent = message;
+            countdownMessage.style.display = 'none';
+            
+            // Iniciar o contador
+            clearInterval(countdownInterval);
+            countdownInterval = setInterval(updateCountdown, 1000);
+        }
+        
+        function updateCountdown() {
+            totalSeconds--;
+            
+            if (totalSeconds < 0) {
+                clearInterval(countdownInterval);
+                countdownDisplay.style.backgroundColor = '#dc2626';
+                countdownTimer.style.display = 'none';
+                countdownMessage.style.display = 'block';
+                playAlertSound();
+                return;
+            }
+            
+            countdownTimer.textContent = formatTime(totalSeconds);
+        }
+        
+        function playAlertSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 800;
+                gainNode.gain.value = 0.1;
+                
+                oscillator.start();
+                setTimeout(() => {
+                    oscillator.stop();
+                }, 1000);
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
+        }
+        
+        function testAlert() {
+            countdownDisplay.style.display = 'flex';
+            countdownDisplay.style.backgroundColor = '#dc2626';
+            countdownTimer.style.display = 'none';
+            countdownMessage.style.display = 'block';
+            playAlertSound();
+            
+            setTimeout(() => {
+                resetCountdown();
+            }, 3000);
+        }
+        
+        function resetCountdown() {
+            clearInterval(countdownInterval);
+            countdownDisplay.style.display = 'none';
+            countdownDisplay.style.backgroundColor = '#000';
+            countdownTimer.style.display = 'block';
+            countdownMessage.style.display = 'none';
+            
+            // Resetar os valores para os padrões
+            hoursInput.value = '00';
+            minutesInput.value = '10';
+            secondsInput.value = '00';
+            customMessageInput.value = 'TEMPO ESGOTADO';
+        }
+        
+        // Event Listeners
+        startButton.addEventListener('click', startCountdown);
+        testAlertButton.addEventListener('click', testAlert);
+        resetButton.addEventListener('click', resetCountdown);
+        
+        // Fechar a tela de contagem ao clicar nela
+        countdownDisplay.addEventListener('click', resetCountdown);
+        
+        // Inicializar os valores
+        validateTimeInput({target: hoursInput});
+        validateTimeInput({target: minutesInput});
+        validateTimeInput({target: secondsInput});
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=sped-led123/lucas" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
